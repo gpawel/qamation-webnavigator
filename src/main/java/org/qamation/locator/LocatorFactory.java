@@ -1,0 +1,82 @@
+package org.qamation.locator;
+
+import org.openqa.selenium.By;
+import org.qamation.scanner.Translator;
+
+import java.lang.reflect.Method;
+
+public class LocatorFactory {
+
+	public static final String [] METHODS = new String[] {
+		"id"
+		,"xpath"
+		,"cssSelector"
+		,"className"		
+		,"linkText"
+		,"name"
+		,"partialLinkText"
+		,"tagName"
+	};
+
+	public static By getLocator(String location) {
+		if (location.contains("=")) {
+			return generateLocator(location);
+		} else {
+			String loc = Translator.getXpath(location);
+			return getLocator(loc);
+		}
+	}
+
+	public static String[] splitElementLocation(String elementLocation) {
+		if (elementLocation.contains("=")) {
+			int elementLocationLength = elementLocation.length();
+			for (String method: METHODS) {
+				if (elementLocation.startsWith(method)) {
+					int methodLength = method.length()+1;
+					String value = elementLocation.substring(methodLength, elementLocationLength);
+					return new String[] {method,value};
+				}
+			}
+			throw new RuntimeException(
+					"location " + elementLocation + " is expected to have format <method>=<locaton description>");
+		}
+		else {
+			String seleniumByMethod = "id";
+			return new String[] {seleniumByMethod,elementLocation};
+		}
+	}
+
+
+	private static By executeMethod(Method method, String... param ) {
+		try {
+			return (By) method.invoke(null,param);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Unable to execute method "+method,e);
+		}
+	}
+	
+	private static  Method findMethod(String methodName) {
+		try {
+			Class<By> cls = By.class;
+			Method method = cls.getMethod(methodName, String.class);
+			return method;
+		} catch (Exception e) {
+			throw new RuntimeException("Unable to create method By." + methodName,e);
+		}
+	}
+
+	private static By generateLocator(String location) {
+		String[] elements = splitElementLocation(location);
+		String methodName = elements[0];
+		String description = elements[1];
+		Method method = findMethod(methodName);
+		By locator = executeMethod(method,description);
+		return locator;
+	}
+	
+
+
+}
+
+
